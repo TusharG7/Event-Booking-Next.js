@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDB } from "@/utils/db";
 import { ObjectId } from "mongodb";
 
-export async function GET(req: Request, { params }: { params: { userId: string } }) {
+export async function GET(req: Request, { params }: {params: Promise<{userId:string}>}) {
   try {
     const { userId } = await params;
 
