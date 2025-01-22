@@ -2,9 +2,10 @@ import { connectToDB } from "@/utils/db";
 import { Event } from "@/types";
 import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 
 
-export const fetchEvents = async (all?:boolean): Promise<Event[]> => {
+export const fetchEvents = unstable_cache(async (all?:boolean): Promise<Event[]> => {
   try {
     const db = await connectToDB();
     let events;
@@ -27,7 +28,7 @@ export const fetchEvents = async (all?:boolean): Promise<Event[]> => {
     console.error("Error fetching events:", error);
     throw error;
   }
-};
+},["events"] , {tags : ["all-events"]});
 
 export const fetchEventDetails = async (id: string) => {
   try {
