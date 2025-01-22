@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDB } from "@/utils/db";
+import { revalidateTag } from "next/cache";
+
 
 // Define the Zod schema for validation
 const eventSchema = z.object({
@@ -54,6 +56,7 @@ export async function POST(req: Request) {
 
     // Insert the new event
     const insertResult = await eventsCollection.insertOne(validEvent);
+    revalidateTag(`all-events`);
 
     return NextResponse.json(
       { message: "Event created successfully", eventId: insertResult.insertedId },
