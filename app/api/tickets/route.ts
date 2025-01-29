@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDB } from "@/utils/db";
 import { ObjectId } from "mongodb";
 import { generateQRCode } from "@/utils/qr";
+import { revalidateTag } from "next/cache";
 
 export async function POST(req: Request) {
     try {
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
         { $inc: { availableTickets: -tickets } }
       );
   
+          revalidateTag(`all-events`);
+      
       return NextResponse.json({ message: "Tickets booked successfully", qr }, { status: 201 });
     } catch (error) {
       console.error("Error in booking tickets:", error);

@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { connectToDB } from "@/utils/db";
 import { ObjectId } from "mongodb";
+import { connectToDB } from "@/utils/db";
 
-export async function GET(req: Request, { params }: {params: Promise<{userId:string}>}) {
+export async function GET(req: Request, { params }: {params: Promise<{email:string}>}) {
+  const { email } = await params;
+
+  if (!email) {
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
   try {
-    const { userId } = await params;
-
-    if (!userId) {
-      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
-    }
-
     const db = await connectToDB();
     const ticketsCollection = db.collection("tickets");
     const eventsCollection = db.collection("events");
 
-    // Fetch tickets for the given userId
-    const tickets = await ticketsCollection.find({ userId: userId }).toArray();
+    const tickets = await ticketsCollection.find({email}).toArray();
 
     // Fetch event details for each ticket's eventId
     const ticketsWithEventDetails = await Promise.all(
@@ -25,6 +24,7 @@ export async function GET(req: Request, { params }: {params: Promise<{userId:str
           ...ticket,
           eventName: event?.name,
           eventDescription: event?.description,
+          location: event?.location,
         };
       })
     );

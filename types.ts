@@ -20,6 +20,16 @@ export type Event = {
     maxPerPerson:number;
     price: number;
   };
+
+  export type UsersTicket = {
+    id: string;
+    eventName: string;
+    date: string;
+    location: string;
+    tickets: number;
+    paidAmount: number;
+    qr: string; // Add the qr field
+  };
   
   export type Ticket = {
     _id: ObjectId | string; // MongoDB ObjectId string

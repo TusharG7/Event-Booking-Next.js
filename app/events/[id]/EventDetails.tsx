@@ -14,6 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { z } from "zod";
+
+const emailSchema = z.string().email();
 
 const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
   const [event, setEvent] = useState<Event | null>(null);
@@ -24,6 +27,7 @@ const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [error, setError] = useState("");
   const [totalPrice, setTotalPrice] = useState(0);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -57,9 +61,14 @@ const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
       return;
     }
 
+    if (!emailSchema.safeParse(email).success) {
+      setError("Invalid email format.");
+      return;
+    }
+
     if (tickets > event.maxPerPerson || tickets > event.availableTickets) {
       setError(
-        "Ticket quantity exceeds the maximum allowed or available tickets."
+        `Ticket quantity exceeds the maximum allowed or available tickets. You can book up to ${event.maxPerPerson} tickets per user.`
       );
       return;
     }
@@ -68,6 +77,8 @@ const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
       setError("User not authenticated. Please log in.");
       return;
     }
+
+    setBookingLoading(true);
 
     try {
       const response = await fetch("/api/tickets", {
@@ -95,6 +106,8 @@ const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
     } catch (error) {
       console.error("Error booking tickets:", error);
       setError("An unexpected error occurred.");
+    } finally {
+      setBookingLoading(false);
     }
   };
 
@@ -119,23 +132,36 @@ const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
         <CardHeader>
           <CardTitle className="text-2xl font-bold">{event.name}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="mb-2">
-            <strong>Date:</strong> {new Date(event.date).toLocaleDateString()}
-          </p>
-          <p className="mb-2">
-            <strong>Location:</strong> {event.location}
-          </p>
-          <p className="mb-2">
-            <strong>Description:</strong> {event.description}
-          </p>
-          <p className="mb-2">
-            <strong>Available Tickets:</strong> {event.availableTickets}
-          </p>
-          <p className="mb-2">
-            <strong>Price:</strong> ${event.price}
-          </p>
-          <Button onClick={() => setIsModalOpen(true)}>Book Tickets</Button>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <div>
+              <p className="text-gray-500">
+                📅 {new Date(event.date).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-gray-700">
+              📍 <strong>Location:</strong> {event.location}
+            </p>
+            <p className="text-gray-700">
+              📝 <strong>Description:</strong> {event.description}
+            </p>
+            <p className="text-gray-700">
+              🎟️ <strong>Available Tickets:</strong> {event.availableTickets}
+            </p>
+            <p className="text-gray-700">
+              💲 <strong>Price:</strong> ${event.price}
+            </p>
+          </div>
+
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+            onClick={() => setIsModalOpen(true)}
+          >
+            🎫 Book Tickets
+          </Button>
         </CardContent>
       </Card>
 
@@ -149,56 +175,68 @@ const EventDetailsPage = ({ id, userId }: { id: string; userId: string }) => {
 
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-            <div className="space-y-4">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-              />
+            <div className="py-2">
+              <div className="mt-3 flex flex-col space-y-2">
+                <Label className="font-semibold">Email</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError("");
+                  }}
+                  placeholder="Enter your email"
+                />
+              </div>
 
-              <Label>Number of Tickets</Label>
-              <Input
-                type="number"
-                value={tickets}
-                onChange={(e) => setTickets(Number(e.target.value))}
-                min="1"
-              />
+              <div className="mt-3 flex flex-col space-y-1">
+                <Label className="font-semibold">Number of Tickets</Label>
+                <Input
+                  type="number"
+                  value={tickets}
+                  onChange={(e) => {
+                    setTickets(Number(e.target.value));
+                    setError("");
+                  }}
+                  min="1"
+                />
+              </div>
 
-              <Label>Payment Method</Label>
-              <Select
-                value={paymentMethod}
-                onValueChange={(value) => setPaymentMethod(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Payment Method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="creditCard">Credit Card</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                  <SelectItem value="bankTransfer">Bank Transfer</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="mt-3 flex flex-col space-y-1">
+                <Label className="font-semibold">Payment Method</Label>
+                <Select
+                  value={paymentMethod}
+                  onValueChange={(value) => {
+                    setPaymentMethod(value);
+                    setError("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Payment Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="creditCard">Credit Card</SelectItem>
+                    <SelectItem value="paypal">PayPal</SelectItem>
+                    <SelectItem value="bankTransfer">Bank Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <p>
+              <p className="mt-3">
                 <strong>Total Price:</strong> ${totalPrice}
               </p>
             </div>
 
             <div className="flex justify-end space-x-2 mt-6">
-              <button
+              <Button
+                className="bg-red-500 hover:bg-red-600"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md"
               >
                 Cancel
-              </button>
-              <button
-                onClick={handlePayAndBook}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md"
-              >
-                Pay & Book
-              </button>
+              </Button>
+              <Button onClick={handlePayAndBook} disabled={bookingLoading}>
+                {bookingLoading ? "Booking..." : "Pay & Book"}
+              </Button>
             </div>
           </div>
         </div>

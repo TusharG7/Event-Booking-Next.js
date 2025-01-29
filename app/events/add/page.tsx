@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -16,7 +15,6 @@ const eventSchema = z.object({
 });
 
 const AddEventPage = () => {
-  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     date: "",
@@ -28,6 +26,7 @@ const AddEventPage = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -47,29 +46,22 @@ const AddEventPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate with Zod
-    const validationResult = eventSchema.safeParse(form);
-    if (!validationResult.success) {
-      const fieldErrors: Record<string, string> = {};
-      validationResult.error.errors.forEach((error) => {
-        if (error.path[0]) fieldErrors[error.path[0] as string] = error.message;
-      });
-      setErrors(fieldErrors);
-      return;
-    }
+    setLoading(true);
+    setErrors({});
 
     try {
-      console.log("validationResult - ", validationResult);
-      const res = await fetch("/api/events", {
+      eventSchema.parse(form);
+
+      const response = await fetch("/api/events", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(validationResult.data),
+        body: JSON.stringify(form),
       });
 
-      if (res.ok) {
+      if (response.ok) {
+        alert("Event added successfully!");
         setForm({
           name: "",
           date: "",
@@ -79,15 +71,24 @@ const AddEventPage = () => {
           maxPerPerson: 1,
           price: 0,
         });
-        setErrors({});
-        alert("Event added successfully!");
       } else {
-        const data = await res.json();
-        alert(data.message || "Failed to add event");
+        const data = await response.json();
+        setErrors({ form: data.error || "Failed to add event." });
       }
     } catch (error) {
-      console.error("Error submitting event:", error);
-      alert("Something went wrong!");
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path.length > 0) {
+            fieldErrors[err.path[0]] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+      } else {
+        setErrors({ form: "An unexpected error occurred." });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,145 +96,116 @@ const AddEventPage = () => {
     <div className="p-4 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Add New Event</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Name */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="name">
+          <label className="block text-sm font-medium text-gray-700">
             Event Name
           </label>
           <input
             type="text"
-            id="name"
             name="name"
             value={form.name}
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
-            placeholder="Enter event name"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
         </div>
-
-        {/* Date */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="date">
+          <label className="block text-sm font-medium text-gray-700">
             Date
           </label>
           <input
             type="date"
-            id="date"
             name="date"
             value={form.date}
-            min={
-              new Date(new Date().setDate(new Date().getDate() + 1))
-                .toISOString()
-                .split("T")[0]
-            }
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
         </div>
-
-        {/* Location */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="location">
+          <label className="block text-sm font-medium text-gray-700">
             Location
           </label>
           <input
             type="text"
-            id="location"
             name="location"
             value={form.location}
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
-            placeholder="Enter event location"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.location && (
             <p className="text-red-500 text-sm">{errors.location}</p>
           )}
         </div>
-
-        {/* Description */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="description">
+          <label className="block text-sm font-medium text-gray-700">
             Description
           </label>
           <textarea
-            id="description"
             name="description"
             value={form.description}
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
-            placeholder="Enter event description"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.description && (
             <p className="text-red-500 text-sm">{errors.description}</p>
           )}
         </div>
-
-        {/* Available Tickets */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="availableTickets">
+          <label className="block text-sm font-medium text-gray-700">
             Available Tickets
           </label>
           <input
             type="number"
-            id="availableTickets"
             name="availableTickets"
             value={form.availableTickets}
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
-            placeholder="Enter number of tickets"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.availableTickets && (
             <p className="text-red-500 text-sm">{errors.availableTickets}</p>
           )}
         </div>
-
-        {/* Max Per Person */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="maxPerPerson">
+          <label className="block text-sm font-medium text-gray-700">
             Max Tickets Per Person
           </label>
           <input
             type="number"
-            id="maxPerPerson"
             name="maxPerPerson"
             value={form.maxPerPerson}
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
-            placeholder="Enter max tickets per person"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.maxPerPerson && (
             <p className="text-red-500 text-sm">{errors.maxPerPerson}</p>
           )}
         </div>
-
-        {/* Price */}
         <div>
-          <label className="block font-medium mb-1" htmlFor="price">
-            Price (in $)
+          <label className="block text-sm font-medium text-gray-700">
+            Price
           </label>
           <input
             type="number"
-            id="price"
             name="price"
             value={form.price}
             onChange={handleChange}
-            className="w-full p-2 border rounded text-white bg-slate-700"
-            placeholder="Enter price per ticket"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
           />
           {errors.price && (
             <p className="text-red-500 text-sm">{errors.price}</p>
           )}
         </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Add Event
-        </button>
+        {errors.form && <p className="text-red-500 text-sm">{errors.form}</p>}
+        <div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+            disabled={loading}
+          >
+            {loading ? "Adding Event..." : "Add Event"}
+          </button>
+        </div>
       </form>
     </div>
   );
